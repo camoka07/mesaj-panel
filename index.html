@@ -288,25 +288,10 @@
     </div>
 
 
-    <!-- DEBUG (Sorun giderme için geçici olarak geri eklendi) -->
-    <div id="debug-toggle" class="fixed bottom-4 right-4 z-50">
-        <button onclick="toggleDebug()"
-            class="bg-slate-800/80 hover:bg-slate-700 text-slate-500 rounded-full w-8 h-8 flex items-center justify-center border border-slate-700/50 transition-all">
-            <i class="fa-solid fa-bug text-xs"></i>
-        </button>
-    </div>
-    <div id="debug-panel"
-        class="fixed bottom-0 right-0 w-full md:w-1/2 h-1/3 bg-black/95 border-t border-slate-800 shadow-2xl z-50 hidden flex flex-col font-mono text-[10px]">
-        <div class="flex items-center justify-between px-3 py-1 bg-slate-900 border-b border-slate-800">
-            <span class="text-slate-400 font-bold uppercase tracking-wider">Debug Log</span>
-            <button onclick="toggleDebug()" class="text-slate-500 hover:text-white"><i
-                    class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div id="debug-logs" class="flex-1 overflow-y-auto p-3 space-y-1 text-slate-400"></div>
-    </div>
+    <!-- Debug panel removed by request -->
 
     <!-- Logic -->
-    <script src="app.js?v=23"></script>
+    <script src="app.js?v=24"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

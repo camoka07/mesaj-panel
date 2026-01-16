@@ -607,7 +607,11 @@ function incrementUnreadCount(channelIndex, jid) {
   if (!unreadCounts[channelIndex]) unreadCounts[channelIndex] = {};
   unreadCounts[channelIndex][jid] = (unreadCounts[channelIndex][jid] || 0) + 1;
   renderSidebar();
-  renderContactList();
+  // Mobil için: Sidebar'ı kapat
+  const sidebar = document.getElementById('main-sidebar');
+  if (sidebar && !sidebar.classList.contains('-translate-x-full')) {
+    sidebar.classList.add('-translate-x-full');
+  }
 }
 
 function clearUnreadCount(channelIndex, jid) {
@@ -1003,6 +1007,12 @@ function selectContact(contact) {
   document.getElementById('chat-name').textContent = displayName;
   document.getElementById('chat-avatar').textContent = displayName.charAt(0).toUpperCase();
 
+  // Mobil için: Sidebar'ı kapat (eğer açıksa)
+  const sidebar = document.getElementById('main-sidebar');
+  if (sidebar && !sidebar.classList.contains('-translate-x-full')) {
+    sidebar.classList.add('-translate-x-full');
+  }
+
   // Mesajları Getir
   fetchMessages(jid);
   clearUnreadCount(selectedChannelIndex, jid);
@@ -1234,6 +1244,7 @@ window.handleSaveAccount = function () {
 
   saveToStorage();
   window.resetForm();
+  window.closeSettings();
 };
 
 window.deleteAccount = function (index) {

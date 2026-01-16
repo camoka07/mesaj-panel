@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unified-dashboard-v1';
+const CACHE_NAME = 'unified-dashboard-v24';
 const ASSETS = [
     'index.html',
     'app.js',
