@@ -875,6 +875,10 @@ function selectChannel(index) {
   // Socket Bağlantısını Başlat
   connectToSocket(index);
 
+  // Mobil için: Sidebar'ı kapat
+  const sidebar = document.getElementById('main-sidebar');
+  if (sidebar) sidebar.classList.add('-translate-x-full');
+
   // Periyodik sağlık kontrolü (opsiyonel ama debug için ekleyelim)
   checkDatabaseHealth(index);
 }
