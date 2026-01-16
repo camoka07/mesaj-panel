@@ -1170,4 +1170,82 @@ window.resetForm = function () {
   document.getElementById('new-ig-token').value = '';
   document.getElementById('new-ig-pageid').value = '';
 
-  
+  document.getElementById('new-type').dispatchEvent(new Event('change'));
+};
+
+window.populateFormForEdit = function (index) {
+  const ch = channels[index];
+  if (!ch) return;
+  editIndex = index;
+
+  document.getElementById('form-title').textContent = 'Hesabı Düzenle';
+  const formIcon = document.getElementById('form-icon');
+  if (formIcon) formIcon.className = 'fa-solid fa-pen-to-square text-orange-500';
+
+  document.getElementById('btn-save-account').textContent = 'Değişiklikleri Kaydet';
+  document.getElementById('btn-cancel-edit').classList.remove('hidden');
+
+  document.getElementById('new-type').value = ch.platform;
+  document.getElementById('new-name').value = ch.title;
+
+  if (ch.platform === 'whatsapp') {
+    document.getElementById('new-wa-url').value = ch.apiUrl || '';
+    document.getElementById('new-wa-key').value = ch.apiKey || '';
+    document.getElementById('new-wa-instance').value = ch.instanceName || '';
+  } else if (ch.platform === 'instagram') {
+    document.getElementById('new-ig-url').value = ch.apiUrl || '';
+    document.getElementById('new-ig-token').value = ch.accessToken || '';
+    document.getElementById('new-ig-pageid').value = ch.pageId || '';
+  }
+
+  document.getElementById('new-type').dispatchEvent(new Event('change'));
+};
+
+window.handleSaveAccount = function () {
+  const platform = document.getElementById('new-type').value;
+  const title = document.getElementById('new-name').value;
+
+  if (!title) {
+    alert('Lütfen bir hesap adı giriniz.');
+    return;
+  }
+
+  const newAccount = {
+    platform,
+    title,
+    apiUrl: '', apiKey: '', instanceName: '', accessToken: '', pageId: ''
+  };
+
+  if (platform === 'whatsapp') {
+    newAccount.apiUrl = document.getElementById('new-wa-url').value;
+    newAccount.apiKey = document.getElementById('new-wa-key').value;
+    newAccount.instanceName = document.getElementById('new-wa-instance').value;
+  } else if (platform === 'instagram') {
+    newAccount.apiUrl = document.getElementById('new-ig-url').value || 'https://graph.facebook.com/v18.0';
+    newAccount.accessToken = document.getElementById('new-ig-token').value;
+    newAccount.pageId = document.getElementById('new-ig-pageid').value;
+  }
+
+  if (editIndex !== null) {
+    channels[editIndex] = newAccount;
+  } else {
+    channels.push(newAccount);
+  }
+
+  saveToStorage();
+  window.resetForm();
+};
+
+window.deleteAccount = function (index) {
+  if (confirm('Bu hesabı silmek istediğinize emin misiniz?')) {
+    channels.splice(index, 1);
+    if (selectedChannelIndex === index) {
+      selectedChannelIndex = null;
+      document.getElementById('contact-list').innerHTML = '';
+      document.getElementById('messages-container').innerHTML = '';
+      document.getElementById('empty-state').classList.remove('hidden');
+      document.getElementById('chat-header').classList.add('hidden');
+    }
+    saveToStorage();
+  }
+};
