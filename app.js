@@ -314,6 +314,7 @@ async function fetchWhatsAppMessages(ch, remoteJid, container) {
     const data = await response.json();
     logDebug("Mesaj verisi alındı [HAM]", data);
 
+    const messages = extractArrayData(data);
     // Reverse messages to show oldest at top, newest at bottom
     currentMessages = messages.map(m => {
       let msgBody = m;
@@ -343,6 +344,7 @@ async function fetchWhatsAppMessages(ch, remoteJid, container) {
     scrollToBottom();
   } catch (error) {
     console.error('Mesaj çekme hatası:', error);
+    logDebug(`KRİTİK HATA: Mesajlar yüklenemedi: ${error.message}`);
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center h-full text-red-400 gap-2">
             <i class="fa-solid fa-circle-exclamation text-2xl"></i>
