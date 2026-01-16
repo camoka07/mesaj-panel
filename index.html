@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Dashboard | Evolution API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="app_icon_512.png">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        dark: '#0f172a',
+                        darker: '#020617',
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        whatsapp: '#22c55e',
+                        instagram: '#e1306c'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #020617;
+            color: #e2e8f0;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: #334155;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+
+<body class="flex h-screen overflow-hidden antialiased selection:bg-primary/30">
+
+    <!-- 1. Sidebar (Accounts) -->
+    <aside id="main-sidebar"
+        class="w-64 bg-darker border-r border-slate-800 flex flex-col transition-all duration-300 relative z-20">
+        <div class="h-20 flex items-center px-6 border-b border-slate-800/50">
+            <i class="fa-solid fa-layer-group text-2xl text-primary drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]"></i>
+            <span id="sidebar-logo-text"
+                class="ml-3 font-bold text-xl tracking-tight text-white transition-opacity duration-300">Unified<span
+                    class="text-primary">Box</span></span>
+        </div>
+
+        <div class="p-4">
+            <button onclick="window.openSettings()"
+                class="w-full bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white py-3 px-4 rounded-xl flex items-center gap-3 transition-all border border-slate-700/50 group">
+                <div
+                    class="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-plus"></i>
+                </div>
+                <span class="sidebar-text font-medium text-sm">Yeni Hesap Ekle</span>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-2 space-y-1" id="sidebar-accounts">
+            <!-- Accounts will be loaded here -->
+        </div>
+
+        <div class="p-4 border-t border-slate-800/50">
+            <button onclick="window.toggleSidebar()"
+                class="w-full h-10 flex items-center justify-center text-slate-500 hover:text-white transition-colors">
+                <i id="sidebar-toggle-icon" class="fa-solid fa-chevron-left"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- 2. Contacts Panel -->
+    <div class="w-80 bg-dark border-r border-slate-800 flex flex-col z-10">
+        <div class="h-20 flex flex-col justify-center px-6 border-b border-slate-800/50 bg-dark/50 backdrop-blur-sm">
+            <h2 id="current-flow-title" class="text-lg font-bold text-white mb-1">Tüm Mesajlar</h2>
+            <div class="relative group">
+                <i
+                    class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors"></i>
+                <input type="text" id="contact-search" placeholder="Ara..."
+                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-slate-600">
+            </div>
+        </div>
+
+        <div id="contact-list" class="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1 scrollbar-thin">
+            <!-- Contacts will be loaded here -->
+            <div class="text-center text-slate-600 mt-10 text-sm">Soldan bir hesap seçin.</div>
+        </div>
+    </div>
+
+    <!-- 3. Main Chat View -->
+    <main class="flex-1 flex flex-col bg-gradient-to-br from-darker to-[#0B1120] relative">
+        <!-- Empty State -->
+        <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 z-0">
+            <div
+                class="w-24 h-24 rounded-full bg-slate-800/30 flex items-center justify-center mb-6 ring-1 ring-slate-700/50">
+                <i class="fa-regular fa-paper-plane text-4xl text-slate-500"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-200 mb-2">Hoşgeldiniz</h3>
+            <p class="text-slate-400 max-w-sm">Sol menüden bir hesap seçin veya Ayarlardan yeni hesap ekleyin.</p>
+        </div>
+
+        <!-- Chat Header -->
+        <header id="chat-header"
+            class="h-20 border-b border-slate-800/80 bg-dark/50 backdrop-blur-sm flex items-center justify-between px-6 z-10 hidden">
+            <div class="flex items-center gap-4">
+                <div id="chat-avatar"
+                    class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                    AB</div>
+                <div>
+                    <h3 id="chat-name" class="font-semibold text-white">Yükleniyor...</h3>
+                    <p class="text-xs text-green-400 flex items-center gap-1"><span
+                            class="w-1.5 h-1.5 rounded-full bg-green-400"></span> Online</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Messages Area -->
+        <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4 hidden scrollbar-thin">
+            <!-- Messages will default here -->
+        </div>
+
+        <!-- Input Area -->
+        <div id="input-area"
+            class="h-24 border-t border-slate-800/80 bg-dark/50 backdrop-blur-sm px-6 flex items-center gap-4 hidden">
+            <div class="flex-1 relative">
+                <input type="text" id="message-input" placeholder="Mesaj yazın..."
+                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 pl-4 pr-12 text-slate-200 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-slate-500">
+            </div>
+            <button id="btn-send-message"
+                class="w-12 h-12 rounded-xl bg-primary hover:bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95">
+                <i class="fa-regular fa-paper-plane"></i>
+            </button>
+        </div>
+    </main>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div
+            class="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
+                        <i class="fa-solid fa-cog text-slate-400"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-white">Hesap Yönetimi</h2>
+                </div>
+                <button onclick="window.closeSettings()"
+                    class="w-8 h-8 rounded-full hover:bg-slate-800 flex items-center justify-center transition-colors text-slate-500 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="flex-1 overflow-y-auto p-8 grid grid-cols-1 lg:grid-cols-2 gap-10">
+
+                <!-- Left: Form -->
+                <div class="space-y-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i id="form-icon" class="fa-solid fa-plus-circle text-primary"></i>
+                        <h3 id="form-title" class="font-bold text-sm uppercase tracking-wider text-slate-400">Yeni Hesap
+                            Ekle</h3>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1 ml-1">Platform</label>
+                            <div class="relative">
+                                <i
+                                    class="fa-solid fa-server absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                                <select id="new-type"
+                                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-200 outline-none focus:border-primary transition-all appearance-none cursor-pointer">
+                                    <option value="whatsapp">WhatsApp (Evolution API)</option>
+                                    <option value="instagram">Instagram (Meta Business API)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1 ml-1">Görünen İsim</label>
+                            <input type="text" id="new-name" placeholder="Örn: Müşteri Hattı"
+                                class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 px-4 text-slate-200 outline-none focus:border-primary transition-all placeholder:text-slate-600">
+                        </div>
+
+                        <!-- WhatsApp Fields -->
+                        <div id="fields-whatsapp" class="space-y-4 pt-2 border-t border-slate-800 border-dashed">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 mb-1 ml-1">Evolution API
+                                    URL</label>
+                                <input type="text" id="new-wa-url" placeholder="https://api.domain.com"
+                                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 px-4 text-slate-200 outline-none focus:border-primary transition-all placeholder:text-slate-600 font-mono text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 mb-1 ml-1">API Key (Global
+                                    Key)</label>
+                                <input type="password" id="new-wa-key" placeholder="API Anahtarı"
+                                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 px-4 text-slate-200 outline-none focus:border-primary transition-all placeholder:text-slate-600 font-mono text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 mb-1 ml-1">Instance Name</label>
+                                <input type="text" id="new-wa-instance" placeholder="Örn: Tufan"
+                                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 px-4 text-slate-200 outline-none focus:border-primary transition-all placeholder:text-slate-600 font-mono text-sm">
+                            </div>
+                        </div>
+
+                        <!-- Instagram Fields -->
+                        <div id="fields-instagram"
+                            class="hidden space-y-4 pt-2 border-t border-slate-800 border-dashed">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 mb-1 ml-1">Graph API URL</label>
+                                <input type="text" id="new-ig-url" placeholder="https://graph.facebook.com/v18.0"
+                                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 px-4 text-slate-200 outline-none focus:border-primary transition-all placeholder:text-slate-600 font-mono text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 mb-1 ml-1">Page Access
+                                    Token</label>
+                                <input type="password" id="new-ig-token" placeholder="EAA..."
+                                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 px-4 text-slate-200 outline-none focus:border-primary transition-all placeholder:text-slate-600 font-mono text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 mb-1 ml-1">Instagram Business
+                                    Account ID (veya Page ID)</label>
+                                <input type="text" id="new-ig-pageid" placeholder="Örn: 123456789"
+                                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 px-4 text-slate-200 outline-none focus:border-primary transition-all placeholder:text-slate-600 font-mono text-sm">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 pt-2">
+                            <button id="btn-save-account" onclick="window.handleSaveAccount()"
+                                class="flex-1 bg-primary hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-95">
+                                Hesabı Ekle
+                            </button>
+                            <button id="btn-cancel-edit" onclick="window.resetForm()"
+                                class="hidden px-6 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition-all">
+                                İptal
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: List -->
+                <div class="border-l border-slate-800 pl-10 hidden lg:block">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i class="fa-solid fa-list text-slate-500"></i>
+                        <h3 class="font-bold text-sm uppercase tracking-wider text-slate-400">Kayıtlı Hesaplar</h3>
+                    </div>
+                    <div id="settings-account-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                        <!-- Accounts list here -->
+                        <div class="text-center text-slate-600 py-10 italic">Henüz hesap eklenmemiş.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DEBUG CONSOLE -->
+    <div id="debug-toggle" class="fixed bottom-4 right-4 z-50">
+        <button onclick="toggleDebug()"
+            class="bg-red-500/20 hover:bg-red-500/40 text-red-500 border border-red-500/50 rounded-full p-3 shadow-lg transition-all">
+            <i class="fa-solid fa-bug"></i>
+        </button>
+    </div>
+
+    <div id="debug-panel"
+        class="fixed bottom-0 right-0 w-full md:w-1/2 h-1/3 bg-black/90 border-t border-red-500/30 shadow-2xl z-40 hidden flex flex-col font-mono text-xs">
+        <div class="flex items-center justify-between px-4 py-2 bg-red-900/20 border-b border-red-500/20">
+            <span class="text-red-400 font-bold"><i class="fa-solid fa-terminal mr-2"></i>Debug Console</span>
+            <div class="flex gap-2">
+                <button onclick="clearDebug()" class="text-slate-400 hover:text-white px-2">Temizle</button>
+                <button onclick="toggleDebug()" class="text-slate-400 hover:text-white px-2"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div id="debug-logs" class="flex-1 overflow-y-auto p-4 space-y-2 text-slate-300">
+            <!-- Logs go here -->
+            <div class="text-slate-500 italic">Konsol hazır...</div>
+        </div>
+    </div>
+
+    <!-- Logic -->
+    <script src="app.js?v=23"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
