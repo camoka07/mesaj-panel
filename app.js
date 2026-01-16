@@ -16,6 +16,8 @@ let socketHeartbeat = null;
 let contactNamesMap = {}; // Global isim haritası
 let dbHealthStatus = "Bilinmiyor"; // Veritabanı sağlık durumu
 let deferredPrompt; // PWA Install prompt
+let unreadCounts = {}; // { channelIndex: { jid: count } }
+let notificationSound = null;
 
 // DOM Elementleri Yüklendiğinde
 document.addEventListener('DOMContentLoaded', () => {
@@ -23,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderSidebar();
   setupEventListeners();
   setupPwaInstall();
+  initNotificationSound();
 
   setTimeout(() => {
     const sidebar = document.getElementById('main-sidebar');
@@ -30,6 +33,18 @@ document.addEventListener('DOMContentLoaded', () => {
     logDebug("Uygulama başlatıldı.");
   }, 100);
 });
+
+function initNotificationSound() {
+  notificationSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+}
+
+function requestNotificationPermission() {
+  if ("Notification" in window) {
+    Notification.requestPermission().then(permission => {
+      logDebug("Bildirim izni:", permission);
+    });
+  }
+}
 
 // --- DEBUG YARDIMCILARI ---
 function toggleDebug() {
@@ -560,6 +575,7 @@ function handleSocketMessage(data) {
 
   // Şu anki sohbete ait mi?
   const remoteJid = message.key.remoteJid;
+  const isMe = !!(message.key.fromMe);
 
   if (remoteJid === activeChatJid) {
     logDebug("⚠️ YENİ MESAJ! Ekrana basılıyor...", remoteJid);
@@ -570,11 +586,55 @@ function handleSocketMessage(data) {
       currentMessages.push(message); // Add to end (newest)
       renderMessages();
       scrollToBottom();
+
+      if (!isMe && (document.hidden || !document.hasFocus())) {
+        showBrowserNotification(message);
+        playNotificationSound();
+      }
     }
   } else {
     logDebug("Yeni mesaj (farklı sohbet):", remoteJid);
-    // İleride burada bildirim rozeti veya liste güncellemesi yapılabilir
+
+    if (!isMe) {
+      incrementUnreadCount(selectedChannelIndex, remoteJid);
+      playNotificationSound();
+      showBrowserNotification(message);
+    }
   }
+}
+
+function incrementUnreadCount(channelIndex, jid) {
+  if (!unreadCounts[channelIndex]) unreadCounts[channelIndex] = {};
+  unreadCounts[channelIndex][jid] = (unreadCounts[channelIndex][jid] || 0) + 1;
+  renderSidebar();
+  renderContactList();
+}
+
+function clearUnreadCount(channelIndex, jid) {
+  if (unreadCounts[channelIndex] && unreadCounts[channelIndex][jid]) {
+    delete unreadCounts[channelIndex][jid];
+    renderSidebar();
+    renderContactList();
+  }
+}
+
+function playNotificationSound() {
+  if (notificationSound) {
+    notificationSound.play().catch(e => logDebug("Ses çalınamadı:", e));
+  }
+}
+
+function showBrowserNotification(message) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+  const jid = message.key.remoteJid;
+  const name = contactNamesMap[jid] || jid.split('@')[0];
+  const text = message.message?.conversation || message.message?.extendedTextMessage?.text || "Yeni bir mesajınız var.";
+
+  new Notification(name, {
+    body: text,
+    icon: 'app_icon_512.png'
+  });
 }
 
 // --- RENDER (GÖRÜNÜM) İŞLEMLERİ ---
@@ -596,9 +656,13 @@ function renderSidebar() {
       ? '<i class="fa-brands fa-whatsapp text-whatsapp text-xl"></i>'
       : '<i class="fa-brands fa-instagram text-instagram text-xl"></i>';
 
+    const totalUnread = Object.values(unreadCounts[index] || {}).reduce((a, b) => a + b, 0);
+    const badgeHtml = totalUnread > 0 ? `<div class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold border-2 border-darker">${totalUnread}</div>` : '';
+
     btn.innerHTML = `
-            <div class="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center shrink-0 shadow-sm">
+            <div class="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center shrink-0 shadow-sm relative">
                 ${iconHtml}
+                ${badgeHtml}
             </div>
             <div class="sidebar-text hidden overflow-hidden">
                 <p class="text-sm font-medium text-slate-200 truncate">${ch.title}</p>
@@ -684,12 +748,18 @@ function renderContactList() {
       displayName = jid.split('@')[0];
     }
 
+    const unread = (unreadCounts[selectedChannelIndex] || {})[jid] || 0;
+    const unreadBadge = unread > 0 ? `<div class="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-auto">${unread}</div>` : '';
+
     div.innerHTML = `
             <div class="w-10 h-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center text-white font-bold shrink-0">
                 ${displayName.charAt(0).toUpperCase()}
             </div>
             <div class="overflow-hidden flex-1">
-                <h4 class="text-sm font-medium text-slate-200 truncate group-hover:text-white transition-colors">${displayName}</h4>
+                <div class="flex items-center justify-between gap-2">
+                    <h4 class="text-sm font-medium text-slate-200 truncate group-hover:text-white transition-colors">${displayName}</h4>
+                    ${unreadBadge}
+                </div>
                 <p class="text-xs text-slate-500 truncate fa-mono">${jid.split('@')[0]}</p>
             </div>
         `;
@@ -876,6 +946,7 @@ function selectChannel(index) {
 
   // Socket Bağlantısını Başlat
   connectToSocket(index);
+  requestNotificationPermission();
 
   // Mobil için: Sidebar'ı kapat
   const sidebar = document.getElementById('main-sidebar');
@@ -934,6 +1005,7 @@ function selectContact(contact) {
 
   // Mesajları Getir
   fetchMessages(jid);
+  clearUnreadCount(selectedChannelIndex, jid);
 
   // Mobil için: Sohbeti göster (sağa kaydır)
   const mainChat = document.getElementById('main-chat');
@@ -995,6 +1067,12 @@ function setupEventListeners() {
     msgInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') sendMessage();
     });
+    msgInput.addEventListener('focus', requestNotificationPermission, { once: true });
+  }
+
+  // Arama inputuna odaklanıldığında da izin isteyebiliriz
+  if (searchInput) {
+    searchInput.addEventListener('focus', requestNotificationPermission, { once: true });
   }
 }
 
@@ -1092,82 +1170,4 @@ window.resetForm = function () {
   document.getElementById('new-ig-token').value = '';
   document.getElementById('new-ig-pageid').value = '';
 
-  document.getElementById('new-type').dispatchEvent(new Event('change'));
-};
-
-window.populateFormForEdit = function (index) {
-  const ch = channels[index];
-  if (!ch) return;
-  editIndex = index;
-
-  document.getElementById('form-title').textContent = 'Hesabı Düzenle';
-  const formIcon = document.getElementById('form-icon');
-  if (formIcon) formIcon.className = 'fa-solid fa-pen-to-square text-orange-500';
-
-  document.getElementById('btn-save-account').textContent = 'Değişiklikleri Kaydet';
-  document.getElementById('btn-cancel-edit').classList.remove('hidden');
-
-  document.getElementById('new-type').value = ch.platform;
-  document.getElementById('new-name').value = ch.title;
-
-  if (ch.platform === 'whatsapp') {
-    document.getElementById('new-wa-url').value = ch.apiUrl || '';
-    document.getElementById('new-wa-key').value = ch.apiKey || '';
-    document.getElementById('new-wa-instance').value = ch.instanceName || '';
-  } else if (ch.platform === 'instagram') {
-    document.getElementById('new-ig-url').value = ch.apiUrl || '';
-    document.getElementById('new-ig-token').value = ch.accessToken || '';
-    document.getElementById('new-ig-pageid').value = ch.pageId || '';
-  }
-
-  document.getElementById('new-type').dispatchEvent(new Event('change'));
-};
-
-window.handleSaveAccount = function () {
-  const platform = document.getElementById('new-type').value;
-  const title = document.getElementById('new-name').value;
-
-  if (!title) {
-    alert('Lütfen bir hesap adı giriniz.');
-    return;
-  }
-
-  const newAccount = {
-    platform,
-    title,
-    apiUrl: '', apiKey: '', instanceName: '', accessToken: '', pageId: ''
-  };
-
-  if (platform === 'whatsapp') {
-    newAccount.apiUrl = document.getElementById('new-wa-url').value;
-    newAccount.apiKey = document.getElementById('new-wa-key').value;
-    newAccount.instanceName = document.getElementById('new-wa-instance').value;
-  } else if (platform === 'instagram') {
-    newAccount.apiUrl = document.getElementById('new-ig-url').value || 'https://graph.facebook.com/v18.0';
-    newAccount.accessToken = document.getElementById('new-ig-token').value;
-    newAccount.pageId = document.getElementById('new-ig-pageid').value;
-  }
-
-  if (editIndex !== null) {
-    channels[editIndex] = newAccount;
-  } else {
-    channels.push(newAccount);
-  }
-
-  saveToStorage();
-  window.resetForm();
-};
-
-window.deleteAccount = function (index) {
-  if (confirm('Bu hesabı silmek istediğinize emin misiniz?')) {
-    channels.splice(index, 1);
-    if (selectedChannelIndex === index) {
-      selectedChannelIndex = null;
-      document.getElementById('contact-list').innerHTML = '';
-      document.getElementById('messages-container').innerHTML = '';
-      document.getElementById('empty-state').classList.remove('hidden');
-      document.getElementById('chat-header').classList.add('hidden');
-    }
-    saveToStorage();
-  }
-};
+  
