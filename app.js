@@ -805,7 +805,7 @@ function renderSettingsList() {
                     <p class="text-xs text-slate-500 truncate max-w-[200px]">${ch.platform} &bull; ${ch.instanceName || (ch.pageId || 'Ayarlanmamış')}</p>
                 </div>
             </div>
-            <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div class="flex gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                 <button onclick="window.populateFormForEdit(${index})" class="p-2 hover:bg-slate-800 rounded-lg text-blue-400 transition-colors"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="window.deleteAccount(${index})" class="p-2 hover:bg-slate-800 rounded-lg text-red-500 transition-colors"><i class="fa-solid fa-trash"></i></button>
             </div>
@@ -989,6 +989,15 @@ window.toggleSidebar = function () {
     icon.classList.replace('fa-chevron-left', 'fa-chevron-right');
   }
   updateSidebarTextVisibility();
+};
+
+window.toggleMobileSidebar = function () {
+  const sidebar = document.getElementById('main-sidebar');
+  if (sidebar.classList.contains('-translate-x-full')) {
+    sidebar.classList.remove('-translate-x-full');
+  } else {
+    sidebar.classList.add('-translate-x-full');
+  }
 };
 
 window.openSettings = function () {
