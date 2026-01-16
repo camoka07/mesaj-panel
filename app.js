@@ -15,12 +15,14 @@ let socket = null;
 let socketHeartbeat = null;
 let contactNamesMap = {}; // Global isim haritası
 let dbHealthStatus = "Bilinmiyor"; // Veritabanı sağlık durumu
+let deferredPrompt; // PWA Install prompt
 
 // DOM Elementleri Yüklendiğinde
 document.addEventListener('DOMContentLoaded', () => {
   loadFromStorage();
   renderSidebar();
   setupEventListeners();
+  setupPwaInstall();
 
   setTimeout(() => {
     const sidebar = document.getElementById('main-sidebar');
@@ -994,6 +996,43 @@ function setupEventListeners() {
       if (e.key === 'Enter') sendMessage();
     });
   }
+}
+
+// --- PWA KURULUM YÖNETİMİ ---
+function setupPwaInstall() {
+  const installBtn = document.getElementById('pwa-install-btn');
+  if (!installBtn) return;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Tarayıcı varsayılan promptunu engelle
+    e.preventDefault();
+    // Eventi sakla
+    deferredPrompt = e;
+    // Butonu göster
+    installBtn.classList.remove('hidden');
+    logDebug("PWA yükleme butonu aktifleşti.");
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+
+    // Prompt'u göster
+    deferredPrompt.prompt();
+
+    // Kullanıcı tercihini bekle
+    const { outcome } = await deferredPrompt.userChoice;
+    logDebug(`Kullanıcı yükleme tercihi: ${outcome}`);
+
+    // Tekrar kullanılamaz, temizle
+    deferredPrompt = null;
+    // Butonu gizle
+    installBtn.classList.add('hidden');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    logDebug('Uygulama başarıyla yüklendi.');
+    installBtn.classList.add('hidden');
+  });
 }
 
 // --- WINDOW FONKSİYONLARI ---
