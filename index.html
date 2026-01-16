@@ -77,7 +77,12 @@
             <!-- Accounts will be loaded here -->
         </div>
 
-        <div class="p-4 border-t border-slate-800/50">
+        <div class="p-4 border-t border-slate-800/50 space-y-2">
+            <button id="pwa-install-btn"
+                class="hidden w-full bg-primary/10 hover:bg-primary/20 text-primary py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition-all border border-primary/20 text-sm font-medium">
+                <i class="fa-solid fa-download"></i>
+                <span>Uygulamayı Yükle</span>
+            </button>
             <button onclick="window.toggleSidebar()"
                 class="w-full h-10 flex items-center justify-center text-slate-500 hover:text-white transition-colors">
                 <i id="sidebar-toggle-icon" class="fa-solid fa-chevron-left"></i>
