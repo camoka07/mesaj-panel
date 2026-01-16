@@ -394,6 +394,8 @@ async function sendMessage() {
   if (!ch) return;
 
   // UI: Hemen ekle (Optimistic Update)
+  logDebug(`Mesaj gönderiliyor: ${text} -> ${activeChatJid}`);
+
   const tempMsg = {
     key: { fromMe: true, id: 'temp_' + Date.now() },
     message: { conversation: text },
@@ -415,10 +417,9 @@ async function sendWhatsAppMessage(ch, text) {
   const baseUrl = ch.apiUrl.replace(/\/$/, "");
   const endpoint = `${baseUrl}/message/sendText/${ch.instanceName}`;
 
-  // Numarayı temizle: 12345@s.whatsapp.net -> 12345
-  const number = activeChatJid.split('@')[0];
+  const number = activeChatJid; // Use full JID (e.g. 12345@s.whatsapp.net or 12345@g.us)
 
-  logDebug("Mesaj gönderiliyor (WA)...", { to: number });
+  logDebug("Mesaj gönderiliyor (WA)...", { to: number, text: text });
 
   try {
     const response = await fetch(endpoint, {
@@ -426,17 +427,20 @@ async function sendWhatsAppMessage(ch, text) {
       headers: getApiHeaders(ch.apiKey),
       body: JSON.stringify({
         "number": number,
-        "options": { "delay": 0, "presence": "composing" },
-        "textMessage": { "text": text }
+        "text": text
       })
     });
 
     if (!response.ok) {
-      const err = await response.text();
-      logDebug(`WA Hata: ${response.status}`, err);
-      alert("WA Mesajı gönderilemedi!");
+      const errText = await response.text();
+      logDebug(`WA Hata: ${response.status}`, errText);
+      alert(`Mesaj gönderilemedi! Hata: ${response.status}\nDetay: ${errText}`);
+    } else {
+      logDebug("Mesaj başarıyla gönderildi.");
     }
   } catch (e) {
+    logDebug("WA Network/CORS Hatası:", e.message);
+    alert("Bağlantı Hatası veya CORS Engeli!\n\nLütfen Evolution API sunucunuzda CORS_ORIGIN=\"*\" ayarının yapıldığından emin olun.");
     console.error('WA Network hatası:', e);
   }
 }
@@ -924,7 +928,20 @@ function selectContact(contact) {
 
   // Mesajları Getir
   fetchMessages(jid);
+
+  // Mobil için: Sohbeti göster (sağa kaydır)
+  const mainChat = document.getElementById('main-chat');
+  if (mainChat) {
+    mainChat.classList.remove('translate-x-full');
+  }
 }
+
+window.backToList = function () {
+  const mainChat = document.getElementById('main-chat');
+  if (mainChat) {
+    mainChat.classList.add('translate-x-full');
+  }
+};
 
 function setupEventListeners() {
   const typeSelect = document.getElementById('new-type');
